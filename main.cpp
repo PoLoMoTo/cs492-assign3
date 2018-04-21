@@ -26,5 +26,4 @@ int main(int argc, char const *argv[]){
             block_size = stoi(argv[i+1]);
         }
     }
-    cout << "test" << endl;
 }
