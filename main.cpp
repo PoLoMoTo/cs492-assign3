@@ -4,6 +4,7 @@
 #include <array>
 #include <vector>
 #include <regex>
+#include <queue>
 using namespace std;
 
 struct LFileNode {
@@ -217,7 +218,19 @@ int main(int argc, char const *argv[]){
             }
             cout << endl;
         } else if (command == "dir"){
-            
+            queue<node*> my_queue;
+            my_queue.push(current);
+            while (my_queue.empty() == false) {
+                node *curr = my_queue.front();
+                cout << curr->name << " ";
+                my_queue.pop();
+                if (curr->children.size() != 0) {
+                    for (int i = 0; i < curr->children.size(); i++) {
+                        my_queue.push(curr->children.at(i));
+                    }
+                }
+            }
+            cout << endl;
         } else if (command == "prfiles"){
             filePrint(root);
         } else if (command == "prdisk"){
@@ -257,10 +270,9 @@ int main(int argc, char const *argv[]){
             newLL->next = NULL;
             newFile->LFile = newLL;
             current->children.push_back(newFile);
-        } else if (command.substr(0, 4) == "add "){
-            string fileName = command.substr(4, command.find(' ', 4)-4);
-            long bytes = stol( command.substr( command.find(' ', 4) ) );
-            cout << fileName << ", " << bytes << endl;
+        } else if (command.substr(0, 4) == "append "){
+            string fileName = command.substr(7, command.find(' ', 7)-7);
+            long bytes = stol( command.substr( command.find(' ', 7) ) );
 
             int blocksNeeded = bytes/block_size;
             if (bytes%block_size != 0)
@@ -323,6 +335,89 @@ int main(int argc, char const *argv[]){
             string fileName = command.substr(7, command.find(' ', 7)-7);
             long bytes = stol( command.substr( command.find(' ', 7) ) );
             cout << fileName << ", " << bytes << endl;
+
+            int blocksNeeded = bytes/block_size;
+            if (bytes%block_size != 0)
+                blocksNeeded++;
+
+            node* currentFile;
+            for (int i = 0; i < current->children.size(); i++){
+                if (current->children.at(i)->name == fileName)
+                    currentFile = current->children.at(i);
+            }
+            
+            while (blocksNeeded != 0){
+                LDiskNode* currentNode = LDiskHead;
+                LFileNode* currentLFile = currentFile->LFile;
+                while (currentLFile->next != NULL){
+                    LFileNode* last = currentLFile;
+                    currentLFile = currentLFile->next;
+                    if (currentLFile->next == NULL){
+                        last->next = NULL;
+                    }
+                }
+                int blockToRemove = currentLFile->blockAddress;
+                while (currentNode->blockIDs.at(currentNode->blockIDs.size()-1) != blockToRemove){
+                    currentNode = currentNode->next;
+                }
+                if (currentNode->next == NULL || currentNode->next != 0){
+                    LDiskNode* newDiskNode = new LDiskNode;
+                    newDiskNode->next = currentNode->next;
+                    currentNode->next = newDiskNode;
+                    newDiskNode->status = 0;
+                    newDiskNode->blockIDs.push_back(blockToRemove);
+                    currentNode->blockIDs.pop_back();
+                } else {
+                    currentNode->next->blockIDs.insert(currentNode->next->blockIDs.begin(), blockToRemove);
+                    currentNode->blockIDs.pop_back();
+                }
+                blocksNeeded--;
+            }
+        } else if (command.substr(0, 7) == "delete "){
+            string fileName = command.substr(7);
+
+            node* currentFile;
+            for (int i = 0; i < current->children.size(); i++){
+                if (current->children.at(i)->name == fileName)
+                    currentFile = current->children.at(i);
+            }
+
+            int blocksNeeded = currentFile->size/block_size;
+            if (currentFile->size%block_size != 0)
+                blocksNeeded++;
+            
+            while (blocksNeeded != 0){
+                LDiskNode* currentNode = LDiskHead;
+                LFileNode* currentLFile = currentFile->LFile;
+                while (currentLFile->next != NULL){
+                    LFileNode* last = currentLFile;
+                    currentLFile = currentLFile->next;
+                    if (currentLFile->next == NULL){
+                        last->next = NULL;
+                    }
+                }
+                int blockToRemove = currentLFile->blockAddress;
+                while (currentNode->blockIDs.at(currentNode->blockIDs.size()-1) != blockToRemove){
+                    currentNode = currentNode->next;
+                }
+                if (currentNode->next == NULL || currentNode->next != 0){
+                    LDiskNode* newDiskNode = new LDiskNode;
+                    newDiskNode->next = currentNode->next;
+                    currentNode->next = newDiskNode;
+                    newDiskNode->status = 0;
+                    newDiskNode->blockIDs.push_back(blockToRemove);
+                    currentNode->blockIDs.pop_back();
+                } else {
+                    currentNode->next->blockIDs.insert(currentNode->next->blockIDs.begin(), blockToRemove);
+                    currentNode->blockIDs.pop_back();
+                }
+                blocksNeeded--;
+            }
+            for (int i = 0; i < currentFile->parent->children.size(); i++){
+                if (currentFile->parent->children.at(i)->name == currentFile->name)
+                    currentFile->parent->children.erase(currentFile->parent->children.begin() + i);
+            }
+            delete currentFile;
         } else {
             cout << "Unknown command" << endl;
         }
